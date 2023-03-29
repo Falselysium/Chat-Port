@@ -185,6 +185,9 @@ static void msg_typed(char *line)
 		/* XXX send a "goodbye" message so other end doesn't
 		 * have to wait for timeout on recv()? */
 	} else {
+	// TODO: this is where your message will be processed to send to the other
+	// party.  You should encrypt and mac before sending!  (your message is in
+	// variable 'line' btw)
 		if (*line) {
 			add_history(line);
 			mymsg = string(line);
@@ -483,6 +486,11 @@ void* recvMsg(void*)
 			should_exit = true;
 			return 0;
 		}
+		// TODO: you have just received an encrypted message.
+		// Check the MAC, decrypt, and post to the curses thread
+		// for drawing (add decrypted message to mq
+		// might want to format messages to include the length
+		// so you can know if you read the whole thing.
 		pthread_mutex_lock(&qmx);
 		mq.push_back({false,msg,"Mr Thread",msg_win});
 		pthread_cond_signal(&qcv);
