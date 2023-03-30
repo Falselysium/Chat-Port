@@ -177,7 +177,7 @@ int dhFinal(mpz_t sk_mine, mpz_t pk_mine, mpz_t pk_yours, unsigned char* keybuf,
 	 *         +------------------------+
 	 *  CTX == | K(i) | PK_A | PK_B | i |
 	 *         +------------------------+
-	 * */
+	 * */ 
 	const size_t ctxlen = maclen + 2*pLen + 8;
 	/* NOTE: the extra 8 bytes are to concatenate the key chunk index */
 	unsigned char* CTX = malloc(ctxlen);

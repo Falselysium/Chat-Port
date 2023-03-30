@@ -21,6 +21,8 @@ using std::deque;
 #include <utility>
 using std::pair;
 #include "dh.h"
+#include <gmp.h>
+
 
 static pthread_t trecv;     /* wait for incoming messagess and post to queue */
 void* recvMsg(void*);       /* for trecv */
@@ -185,9 +187,23 @@ static void msg_typed(char *line)
 		/* XXX send a "goodbye" message so other end doesn't
 		 * have to wait for timeout on recv()? */
 	} else {
-	// TODO: this is where your message will be processed to send to the other
-	// party.  You should encrypt and mac before sending!  (your message is in
-	// variable 'line' btw)
+	// TODO: this is where your message will be processed to send to the other party.  You should encrypt and mac before sending!  (your message is in variable 'line' btw)
+	// Andy
+		// NEWZ(a); /* secret key (a random exponent) */
+		// NEWZ(A); /* public key: A = g^a mod p */
+		// dhGen(a,A);
+		// /* Bob: */
+		// NEWZ(b); /* secret key (a random exponent) */
+		// NEWZ(B); /* public key: B = g^b mod p */
+		// dhGen(b,B);
+		// const size_t klen = 32;
+		// unsigned char kA[klen];
+		// dhFinal(a,A,B,kA,klen);
+		// printf("Alice's key:\n");
+		// for (size_t i = 0; i < klen; i++) {
+		// 	printf("%02x ",kA[i]);
+		// }
+	// Andy	S
 		if (*line) {
 			add_history(line);
 			mymsg = string(line);
