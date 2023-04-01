@@ -189,20 +189,16 @@ static void msg_typed(char *line)
 	} else {
 	// TODO: this is where your message will be processed to send to the other party.  You should encrypt and mac before sending!  (your message is in variable 'line' btw)
 	// Andy
-		// NEWZ(a); /* secret key (a random exponent) */
-		// NEWZ(A); /* public key: A = g^a mod p */
-		// dhGen(a,A);
-		// /* Bob: */
-		// NEWZ(b); /* secret key (a random exponent) */
-		// NEWZ(B); /* public key: B = g^b mod p */
-		// dhGen(b,B);
-		// const size_t klen = 32;
-		// unsigned char kA[klen];
-		// dhFinal(a,A,B,kA,klen);
-		// printf("Alice's key:\n");
-		// for (size_t i = 0; i < klen; i++) {
-		// 	printf("%02x ",kA[i]);
-		// }
+		NEWZ(a); /* secret key (a random exponent) */
+		NEWZ(A); /* public key: A = g^a mod p */
+		dhGen(a,A);
+		/* Bob: */
+		NEWZ(b); /* secret key (a random exponent) */
+		NEWZ(B); /* public key: B = g^b mod p */
+		dhGen(b,B);
+		const size_t klen = 32;
+		unsigned char kA[klen];
+		dhFinal(a,A,B,kA,klen);
 	// Andy	S
 		if (*line) {
 			add_history(line);
