@@ -22,7 +22,12 @@ using std::deque;
 using std::pair;
 #include "dh.h"
 #include <gmp.h>
-
+#include <openssl/rsa.h>
+#include <openssl/aes.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/sha.h>
+#include <openssl/pem.h>
 
 static pthread_t trecv;     /* wait for incoming messagess and post to queue */
 void* recvMsg(void*);       /* for trecv */
@@ -189,25 +194,63 @@ static void msg_typed(char *line)
 	} else {
 	// TODO: this is where your message will be processed to send to the other party.  You should encrypt and mac before sending!  (your message is in variable 'line' btw)
 	// Andy
-		NEWZ(a); /* secret key (a random exponent) */
-		NEWZ(A); /* public key: A = g^a mod p */
-		dhGen(a,A);
-		/* Bob: */
-		NEWZ(b); /* secret key (a random exponent) */
-		NEWZ(B); /* public key: B = g^b mod p */
-		dhGen(b,B);
-		const size_t klen = 32;
-		unsigned char kA[klen];
-		dhFinal(a,A,B,kA,klen);
-	// Andy	S
+		RSA* keys = RSA_new();
+		if(!keys) exit(1);
+		BIGNUM* e = BN_new();
+		if (!e) exit(1);
+		BN_set_word(e,RSA_F4); // This is how you set e to RSA_F4 which is 65537
+
+		// Now to generate the RSA key call 
+		int check_r = RSA_generate_key_ex(keys,2048,e,NULL);
+		// RSA_generate_key_ex which will return 0 if it fails and 1 if the key was generated
+		if (check_r != 1) exit(1);
+
+		// Now write the Public key in RSA and store it in stdout as a PEM(Privately Enchanced Mail)
+		// PEM_write_RSA_PUBKEY(stdout, keys);
+		// Private KEY
+		// PEM_write_RSAPrivateKey(stdout,keys,NULL,NULL,0,NULL,NULL);
+
+		// Encrypt the message by getting the msg which is line and the size of the RSA key
+		size_t len = strlen(line); // Length of the message
+		unsigned char* ct = (unsigned char*)malloc(RSA_size(keys)); // allocate dynamic memory for the RSA key
+		int ctlen = RSA_public_encrypt(len+1, (unsigned char*)line, ct, keys,RSA_PKCS1_OAEP_PADDING); // RSA_PKCS1_OAEP_PADDING is used to add more inputs to make the encryption better
+		if (ctlen == -1) exit(1);
+
+		//! MAC
+		char* shared_key = "Mactest";
+		unsigned char mac[32];
+		memset(mac,0,32);
+		HMAC(EVP_sha256(), shared_key, strlen(shared_key), (unsigned char*)line, len, mac, NULL);
+		//! MAC created
+		
+		//TODO: Concatonate mac + ct
+		unsigned char* mac_ct = (unsigned char*)malloc(ctlen+32); // Alocate Memory for mac + ct
+		memcpy(mac_ct,mac,32); // Add mac to the beginning of mac_ct
+		memcpy(mac_ct + 32, ct, ctlen); // Adds ct to mac_ct after the 32 location
+
+
+
+	// Andy	
 		if (*line) {
 			add_history(line);
 			mymsg = string(line);
 			transcript.push_back("me: " + mymsg);
 			ssize_t nbytes;
-			if ((nbytes = send(sockfd,line,mymsg.length(),0)) == -1)
+			if ((nbytes = send(sockfd,mac_ct,ctlen + 32,0)) == -1)
 				error("send failed");
 		}
+
+		//! Original ====
+		// if (*line) {
+			// add_history(line);
+			// mymsg = string(line);
+			// transcript.push_back("me: " + mymsg);
+			// ssize_t nbytes;
+			// if ((nbytes = send(sockfd,line,mymsg.length(),0)) == -1)
+				// error("send failed");
+		// }
+		//! Original ====
+		
 		pthread_mutex_lock(&qmx);
 		mq.push_back({false,mymsg,"me",msg_win});
 		pthread_cond_signal(&qcv);
@@ -503,6 +546,10 @@ void* recvMsg(void*)
 		// for drawing (add decrypted message to mq
 		// might want to format messages to include the length
 		// so you can know if you read the whole thing.
+		// char* pt = malloc(ctlen);
+		// size_t ptlen = RSA_private_decrypt(ctlen,ct,(unsigned char*)pt,keys,RSA_PKCS1_OAEP_PADDING);
+		// if (ptlen == -1) exit(1);
+
 		pthread_mutex_lock(&qmx);
 		mq.push_back({false,msg,"Mr Thread",msg_win});
 		pthread_cond_signal(&qcv);

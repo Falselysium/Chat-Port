@@ -108,10 +108,10 @@ void rsa_example()
 	 * password protect the private key. */
 	PEM_write_RSAPrivateKey(stdout,keys,NULL,NULL,0,NULL,NULL);
 	char* message = "this is a test message :D";
+	
 	size_t len = strlen(message);
 	unsigned char* ct = malloc(RSA_size(keys));
-	int ctlen = RSA_public_encrypt(len+1 /* include null char */, (unsigned char*)message,
-			ct, keys, RSA_PKCS1_OAEP_PADDING);
+	int ctlen = RSA_public_encrypt(len+1 /* include null char */, (unsigned char*)message, ct, keys, RSA_PKCS1_OAEP_PADDING);
 	if (ctlen == -1) exit(1);
 	/* print RSA ciphertext */
 	printf("RSA ciphertext:\n");
@@ -137,3 +137,47 @@ int main()
 	hmac_example();
 	return 0;
 }
+
+
+
+// #include <openssl/rsa.h>
+// #include <openssl/pem.h>
+// #include <string.h>
+// #include <stdlib.h>
+// #include <stdio.h>
+
+// int main()
+// {
+//     char* message = "this is a test message :D";
+//     RSA* rsa = RSA_generate_key(2048, RSA_F4, NULL, NULL);
+
+//     // Generate the HMAC
+//     unsigned char hmac[SHA256_DIGEST_LENGTH];
+//     char* key = "my secret key";
+//     HMAC(EVP_sha256(), key, strlen(key), (unsigned char*)message, strlen(message), hmac, NULL);
+
+//     // Encrypt the message
+//     unsigned char* encrypted = (unsigned char*)malloc(RSA_size(rsa));
+//     int encrypted_length = RSA_public_encrypt(strlen(message) + 1, (unsigned char*)message, encrypted, rsa, RSA_PKCS1_OAEP_PADDING);
+
+//     // Decrypt the message
+//     unsigned char* decrypted = (unsigned char*)malloc(RSA_size(rsa));
+//     int decrypted_length = RSA_private_decrypt(encrypted_length, encrypted, decrypted, rsa, RSA_PKCS1_OAEP_PADDING);
+
+//     printf("Original message: %s\n", message);
+//     printf("HMAC: ");
+//     for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+//         printf("%02x", hmac[i]);
+//     }
+//     printf("\n");
+
+//     printf("Encrypted message: ");
+//     for(int i = 0; i < encrypted_length; i++) {
+//         printf("%02x", encrypted[i]);
+//     }
+//     printf("\n");
+
+//     printf("Decrypted message: %s\n", decrypted);
+
+//     return 0;
+// }
