@@ -119,7 +119,7 @@ void rsa_example()
 	printf("\n");
 	/* now try to decrypt */
 	char* pt = malloc(ctlen);
-	size_t ptlen = RSA_private_decrypt(ctlen,ct,(unsigned char*)pt,keys,RSA_PKCS1_OAEP_PADDING);
+	size_t ptlen = RSA_private_decrypt(ctlen,ct,(unsigned char*)pt,keyss,RSA_PKCS1_OAEP_PADDING);
 	if (ptlen == -1) exit(1);
 	printf("RSA decrypted plaintext:\n%s\n",pt);
 }

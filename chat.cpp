@@ -115,6 +115,21 @@ static int initClientNet(char* hostname, int port)
 	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
 		error("ERROR connecting");
 	/* at this point, should be able to send/recv on sockfd */
+	// TODO Diffie Hellman
+	init("params")
+	NEWZ(a);
+	NEWZ(A);
+	dhGen(a,A);
+	NEWZ(B);
+	const size_t klen = 128;
+	unsigned char kA[klen];
+	dhFinal(a,A,B,kA,)
+	// size_t size = mpz_sizeinbase(A, 2);
+
+	// if (send(sockfd, A, 64,0)== -1){
+    //     error("ERROR sending DH public key");
+	// }
+
 	return 0;
 }
 
