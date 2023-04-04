@@ -92,6 +92,15 @@ int initServerNet(int port)
 	close(listensock);
 	fprintf(stderr, "connection made, starting session...\n");
 	/* at this point, should be able to send/recv on sockfd */
+	
+	mpz_t B;
+	mpz_init(B);
+	size_t Bpklen = mpz_size(B);
+	if (recv(sockfd, B, Bpklen, 0) == -1) {
+	    error("ERROR receiving DH public key");
+	}
+	printf("Received DH public key B: %Zd\n", B);
+
 	return 0;
 }
 
@@ -120,15 +129,30 @@ static int initClientNet(char* hostname, int port)
 	NEWZ(a);
 	NEWZ(A);
 	dhGen(a,A);
-	NEWZ(B);
+	// NEWZ(B);
+	// If A,a long term key, read from file
+	// If ephemeral, this is fine
+	// if B is long term, read from file, otherwise, get from network.
+	// See Z2BYTES macro...
+	// Once you have it, run dhFinal on a,A,B... This will compute the shared secret
+	// and do key derivation
+	size_t pklen = mpz_size(A);
 	const size_t klen = 128;
 	unsigned char kA[klen];
 	dhFinal(a,A,B,kA,klen);
-	// size_t size = mpz_sizeinbase(A, 2);
 
-	if (send(sockfd, A, A->_mp_size,0)== -1){
-    //     error("ERROR sending DH public key");
+	if (send(sockfd, A, pklen,0)== -1){
+        error("ERROR sending DH public key");
 	}
+
+	// const size_t buflen = 4;
+	// char buf[buflen];
+	// if (recv(sockfd, buf, buflen, 0) == -1) {
+	//     error("ERROR receiving acknowledgment message");
+	// }
+	// if (strcmp(buf, "ACK") != 0) {
+	//     error("ERROR: unexpected acknowledgment message");
+	// }
 
 	return 0;
 }
