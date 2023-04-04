@@ -116,19 +116,19 @@ static int initClientNet(char* hostname, int port)
 		error("ERROR connecting");
 	/* at this point, should be able to send/recv on sockfd */
 	// TODO Diffie Hellman
-	init("params")
+	init("params");
 	NEWZ(a);
 	NEWZ(A);
 	dhGen(a,A);
 	NEWZ(B);
 	const size_t klen = 128;
 	unsigned char kA[klen];
-	dhFinal(a,A,B,kA,)
+	dhFinal(a,A,B,kA,klen);
 	// size_t size = mpz_sizeinbase(A, 2);
 
-	// if (send(sockfd, A, 64,0)== -1){
+	if (send(sockfd, A, A->_mp_size,0)== -1){
     //     error("ERROR sending DH public key");
-	// }
+	}
 
 	return 0;
 }
@@ -237,6 +237,7 @@ static void msg_typed(char *line)
 		memset(mac,0,32);
 		HMAC(EVP_sha256(), shared_key, strlen(shared_key), (unsigned char*)line, len, mac, NULL);
 		//! MAC created
+		
 		
 		//TODO: Concatonate mac + ct
 		unsigned char* mac_ct = (unsigned char*)malloc(ctlen+32); // Alocate Memory for mac + ct
