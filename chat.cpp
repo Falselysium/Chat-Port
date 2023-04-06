@@ -28,6 +28,9 @@ using std::pair;
 #include <openssl/err.h>
 #include <openssl/sha.h>
 #include <openssl/pem.h>
+#include <string>
+#include <iostream>
+
 
 static pthread_t trecv;     /* wait for incoming messagess and post to queue */
 void* recvMsg(void*);       /* for trecv */
@@ -92,14 +95,35 @@ int initServerNet(int port)
 	close(listensock);
 	fprintf(stderr, "connection made, starting session...\n");
 	/* at this point, should be able to send/recv on sockfd */
-	
-	mpz_t B;
-	mpz_init(B);
-	size_t Bpklen = mpz_size(B);
-	if (recv(sockfd, B, Bpklen, 0) == -1) {
-	    error("ERROR receiving DH public key");
+	//! Handshake 
+	//! Client -- SYN ---> Server
+	size_t SYN;
+	if (recv(sockfd, &SYN, sizeof(SYN),0) == -1){
+		error("failed to receive SYN");
 	}
-	printf("Received DH public key B: %Zd\n", B);
+
+	//! Server -- SYN+1, ACK ---> Server
+	SYN += 1;
+	char message[256];
+	sprintf(message, "%lu,ACK",SYN);
+	if (send(sockfd, message, strlen(message), 0) == -1) {
+	    error("failed to send SYN+1 and ACK");
+	}
+	
+	//! Client -- ACK ---> Server
+	if (recv(sockfd, message, strlen(message), 0) == -1) {
+		error("failed to receive ACK");
+	}
+	//! Handshake
+
+	// TODO Diffie Hellman
+	// mpz_t B;
+	// mpz_init(B);
+	// size_t Bpklen = mpz_size(B);
+	// if (recv(sockfd, B, Bpklen, 0) == -1) {
+	//     error("ERROR receiving DH public key");
+	// }
+	// printf("Received DH public key B: %Zd\n", B);
 
 	return 0;
 }
@@ -124,11 +148,41 @@ static int initClientNet(char* hostname, int port)
 	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
 		error("ERROR connecting");
 	/* at this point, should be able to send/recv on sockfd */
+	//! Handshake 
+	//! Client -- SYN ---> Server
+	size_t SYN = rand() % 69420 + 100000;
+	if (send(sockfd, &SYN,sizeof(SYN),0) == -1){
+		error("failed to send SYN");
+	}
+
+	//! Server -- SYN+1, ACK ---> Server
+	char buffer[256];
+	if (recv(sockfd, buffer, sizeof(buffer), 0) == -1) {
+	    error("failed to receive message");
+	}
+	
+	string message(buffer);
+	size_t delimiter = message.find(",");
+	if (delimiter == string::npos) {
+	    error("invalid message format");
+	}
+	string test_syn = message.substr(0, delimiter);
+	string ack = message.substr(delimiter + 1);
+
+	//! Client -- ACK ---> Server
+	if (stoi(test_syn) == SYN+1){
+		if (send(sockfd, ack.c_str(), ack.size() ,0) == -1){
+			error("failed to send ACK");
+		}
+	}
+	else exit(0);
+	//! Handshake
+
 	// TODO Diffie Hellman
-	init("params");
-	NEWZ(a);
-	NEWZ(A);
-	dhGen(a,A);
+	// init("params");
+	// NEWZ(a);
+	// NEWZ(A);
+	// dhGen(a,A);
 	// NEWZ(B);
 	// If A,a long term key, read from file
 	// If ephemeral, this is fine
@@ -136,14 +190,14 @@ static int initClientNet(char* hostname, int port)
 	// See Z2BYTES macro...
 	// Once you have it, run dhFinal on a,A,B... This will compute the shared secret
 	// and do key derivation
-	size_t pklen = mpz_size(A);
-	const size_t klen = 128;
-	unsigned char kA[klen];
-	dhFinal(a,A,B,kA,klen);
+	// size_t pklen = mpz_size(A);
+	// const size_t klen = 128;
+	// unsigned char kA[klen];
+	// dhFinal(a,A,B,kA,klen);
 
-	if (send(sockfd, A, pklen,0)== -1){
-        error("ERROR sending DH public key");
-	}
+	// if (send(sockfd, A, pklen,0)== -1){
+    //     error("ERROR sending DH public key");
+	// }
 
 	// const size_t buflen = 4;
 	// char buf[buflen];
