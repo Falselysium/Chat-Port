@@ -455,8 +455,8 @@ static void msg_typed(char *line) {
             // Declare a variable to store the number of bytes sent
             ssize_t nbytes;
 			unsigned char *encrypted_line = aes_encrypt(line);
-			unsigned char mac[32];
-			HMAC(EVP_sha256(), HMACkey, strlen(HMACkey), (unsigned char*) encrypted_line, strlen(encrypted_line), mac, NULL);
+			//unsigned char mac[32];
+			//HMAC(EVP_sha256(), HMACkey, strlen(HMACkey), (unsigned char*) encrypted_line, strlen(encrypted_line), mac, NULL);
 			size_t AESkeylen = 80;
             // Send the message (line) over the socket
             // Returns the number of bytes sent or -1 if an error occurs
