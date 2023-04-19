@@ -41,7 +41,10 @@ mpz_t B;
 mpz_t A;
 mpz_t a;
 mpz_t b;
-
+unsigned char iv[12];
+unsigned char HMACkey[36];
+unsigned char AESkey[80];
+    
 #define MSG_SIZE 1024
 #define AES_BLOCK_SIZE 50
 
@@ -109,7 +112,27 @@ void generate_private_key(mpz_t a, const mpz_t p) {
     mpz_clear(p_minus_2);
     gmp_randclear(rand_state);
 }
-
+void fill_IV()
+{
+	for(int i=0;i<12;i++)
+	{
+		iv[i]=kA[i];
+	}
+}
+void fill_HMACkey()
+{
+	for(int i=13;i<13+36;i++)
+	{
+		HMACkey[i]=kA[i];
+	}
+}
+void fill_AESkey()
+{
+	for(int i=13+36+1;i<128;i++)
+	{
+		AESkey[i]=kA[i];
+	}
+}
 int initServerNet(int port)
 {
 	int reuse = 1;
@@ -184,7 +207,7 @@ if (send(sockfd, Abuf, pklen, 0) == -1) {
 
 // Receive B from Bob
 
-//init B to all 0s
+//init B 
 mpz_init(B);
 
 size_t Bpklen = pLen; // Assuming pLen is the size of the large prime p in bytes
@@ -203,7 +226,9 @@ mpz_import(B, Bpklen, 1, sizeof(Bbuf[0]), 0, 0, Bbuf);
 free(Bbuf);
 
 dhFinal(a, A, B, kA, klen);
-
+ fill_HMACkey();
+ fill_AESkey();
+ fill_IV();
 //const char* const_kA = (const char*) kA;
 //printf(const_kA);
 
@@ -304,38 +329,11 @@ free(Abuf);
 
 dhFinal(b, A, B, kA, klen);
 
+fill_HMACkey();
+fill_AESkey();
+fill_IV();
 
 
-//const char* const_kA = (const char*) kA;
-//const char elly ='e';
-//const char* ellyp = (const char*) elly;
-//printf(ellyp);
-//printf(const_kA);
-// If A,a long term key, read from file
-// If ephemeral, this is fine
-// If B is long term, read from file, otherwise, get from network.
-// See Z2BYTES macro...
-
-// Receive B from the other party (over an insecure channel)
-// ... (The code for receiving B should be here)
-
-// Once you have it, run dhFinal on a,A,B... This will compute the shared secret
-// and do key derivation
-
-
-	 /*if (send(sockfd, A, pklen,0)== -1){
-         error("ERROR sending DH public key");
-	 }
-
-	const size_t buflen = 4;
-	char buf[buflen];
-	if (recv(sockfd, buf, buflen, 0) == -1) {
-	    error("ERROR receiving acknowledgment message");
-	 }
-	 if (strcmp(buf, "ACK") != 0) {
-	    error("ERROR: unexpected acknowledgment message");
-	 }
-*/
 
 	return 0;
 }
@@ -407,9 +405,8 @@ static void msg_win_redisplay(bool batch, const string& newmsg="", const string&
 
 
 //returns messsage encrypted using shared secret(kA)
-unsigned char *aes_encrypt(unsigned char key[32], char *message) {
-    unsigned char iv[16];
-    for (size_t i = 0; i < 16; i++) iv[i] = i;
+unsigned char *aes_encrypt(char *message) {
+    
 
     unsigned char *ct = (unsigned char *) malloc(512 * sizeof(unsigned char));
     memset(ct, 0, 512);
@@ -417,7 +414,7 @@ unsigned char *aes_encrypt(unsigned char key[32], char *message) {
     size_t len = strlen(message);
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, iv))
+    if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, AESkey, iv))
         ERR_print_errors_fp(stderr);
 
     int nWritten;
@@ -457,12 +454,13 @@ static void msg_typed(char *line) {
 
             // Declare a variable to store the number of bytes sent
             ssize_t nbytes;
-			unsigned char *encrypted_line = aes_encrypt(kA,line);
-
-			size_t kAlen = 128;
+			unsigned char *encrypted_line = aes_encrypt(line);
+			unsigned char mac[32];
+			HMAC(EVP_sha256(), HMACkey, strlen(HMACkey), (unsigned char*) encrypted_line, strlen(encrypted_line), mac, NULL);
+			size_t AESkeylen = 80;
             // Send the message (line) over the socket
             // Returns the number of bytes sent or -1 if an error occurs
-            if ((nbytes = send(sockfd, encrypted_line, kAlen, 0)) == -1)
+            if ((nbytes = send(sockfd, encrypted_line, AESkeylen, 0)) == -1)
                 error("send failed");
         }
 
@@ -749,15 +747,14 @@ void* cursesthread(void* pData)
 	return 0;
 }
 
-void aes_decrypt(unsigned char key[128], unsigned char *ciphertext, int ciphertext_len) {
-    unsigned char iv[16];
-    for (size_t i = 0; i < 16; i++) iv[i] = i;
+void aes_decrypt(unsigned char *ciphertext, int ciphertext_len) {
+    
 
     unsigned char pt[512];
     memset(pt, 0, 512);
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, iv))
+    if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, AESkey, iv))
         ERR_print_errors_fp(stderr);
 
     int nWritten;
@@ -789,7 +786,7 @@ void* recvMsg(void*)
 			return 0;
 		}
 		
-		aes_decrypt(kA, (unsigned char*) msg, 50);
+		aes_decrypt((unsigned char*) msg, 50);
 
 		pthread_mutex_lock(&qmx);
 		mq.push_back({false,msg,"Mr Thread",msg_win});
@@ -798,4 +795,5 @@ void* recvMsg(void*)
 	}
 	return 0;
 }
+
 
