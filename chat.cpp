@@ -784,6 +784,8 @@ void aes_decrypt(unsigned char *ciphertext, int ciphertext_len) {
 
     nWritten += nFinal;
 
+	EVP_CIPHER_CTX_set_padding(ctx, 1);
+
     // Parse the length prefix (first 3 characters) and print only the message
     int message_length;
     sscanf((char *)pt, "%03d", &message_length);
