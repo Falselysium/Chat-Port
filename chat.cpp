@@ -229,8 +229,7 @@ dhFinal(a, A, B, kA, klen);
  fill_HMACkey();
  fill_AESkey();
  fill_IV();
-//const char* const_kA = (const char*) kA;
-//printf(const_kA);
+
 
 	return 0;
 }
@@ -452,16 +451,36 @@ static void msg_typed(char *line) {
             // Append the message to the transcript vector with the prefix "me: "
             transcript.push_back("me: " + mymsg);
 
+            
+            unsigned char mac[32];
+			HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), (unsigned char*) line, strlen((const char*)line), mac, NULL);
+			// Calculate the lengths of line and mac
+    		size_t line_length = strlen(line);
+    		size_t mac_length = sizeof(mac) / sizeof(mac[0]);
+
+    // Allocate memory for the concatenated result (line + mac)
+    unsigned char *concatenated = (unsigned char *)malloc(line_length + mac_length);
+
+    // Write the length of line as a 3-character string (padded with zeros) into the concatenated buffer
+    sprintf((char *)concatenated, "%03zu", line_length);
+
+    // Copy the contents of line and mac into the concatenated buffer after the length prefix
+    memcpy(concatenated + 3, line, line_length);
+    memcpy(concatenated + 3 + line_length, mac, mac_length);
+            
             // Declare a variable to store the number of bytes sent
             ssize_t nbytes;
-			unsigned char *encrypted_line = aes_encrypt(line);
-			//unsigned char mac[32];
-			//HMAC(EVP_sha256(), HMACkey, strlen(HMACkey), (unsigned char*) encrypted_line, strlen(encrypted_line), mac, NULL);
+			
+			unsigned char *encrypted_line = aes_encrypt((char*)concatenated);
+			
 			size_t AESkeylen = 80;
             // Send the message (line) over the socket
             // Returns the number of bytes sent or -1 if an error occurs
             if ((nbytes = send(sockfd, encrypted_line, AESkeylen, 0)) == -1)
                 error("send failed");
+        
+// Free the allocated memory
+    free(concatenated);
         }
 
         // Lock the mutex to ensure thread-safe access to the message queue
@@ -748,8 +767,6 @@ void* cursesthread(void* pData)
 }
 
 void aes_decrypt(unsigned char *ciphertext, int ciphertext_len) {
-    
-
     unsigned char pt[512];
     memset(pt, 0, 512);
 
@@ -766,10 +783,31 @@ void aes_decrypt(unsigned char *ciphertext, int ciphertext_len) {
         ERR_print_errors_fp(stderr);
 
     nWritten += nFinal;
-    printf("decrypted %i bytes:\n%s\n", nWritten, pt);
 
+    // Parse the length prefix (first 3 characters) and print only the message
+    int message_length;
+    sscanf((char *)pt, "%03d", &message_length);
+
+    // Extract the MAC from the decrypted result
+    unsigned char *extracted_mac = pt + 3 + message_length;
+
+    // Compute the expected MAC using the HMAC function
+    unsigned char expected_mac[32];
+    HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), pt + 3, message_length, expected_mac, NULL);
+
+    // Compare the extracted MAC with the expected MAC
+    if (memcmp(extracted_mac, expected_mac, 32) == 0) {
+        printf("MAC is kosher\n");
+    } else {
+        printf("MAC is not valid. Possible middleman attack, please exit!\n");
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+
+    printf("decrypted %i bytes:\n%.*s\n", message_length, message_length, pt + 3);
     EVP_CIPHER_CTX_free(ctx);
 }
+
 
 void* recvMsg(void*)
 {
@@ -786,7 +824,7 @@ void* recvMsg(void*)
 			return 0;
 		}
 		
-		aes_decrypt((unsigned char*) msg, 50);
+		aes_decrypt((unsigned char*) msg, 49);
 
 		pthread_mutex_lock(&qmx);
 		mq.push_back({false,msg,"Mr Thread",msg_win});
