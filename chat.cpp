@@ -447,41 +447,43 @@ static void msg_typed(char *line) {
 
             // Store the line (message) in the mymsg variable
             mymsg = string(line);
+		//	printf("Size of string mymsg: %d", sizeof(mymsg));
 
             // Append the message to the transcript vector with the prefix "me: "
             transcript.push_back("me: " + mymsg);
 
             
-            unsigned char mac[32];
-			HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), (unsigned char*) line, strlen((const char*)line), mac, NULL);
+//            unsigned char mac[32];
+//			HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), (unsigned char*) line, strlen((const char*)line), mac, NULL);
 		// Calculate the lengths of line and mac
-  		size_t line_length = strlen(line);
-    		size_t mac_length = sizeof(mac) / sizeof(mac[0]);
+//  		size_t line_length = strlen(line);
+//    		size_t mac_length = sizeof(mac) / sizeof(mac[0]);
 
     // Allocate memory for the concatenated result (line + mac)
-    unsigned char *concatenated = (unsigned char *)malloc(line_length + mac_length);
+//    unsigned char *concatenated = (unsigned char *)malloc(line_length + mac_length);
 
     // Write the length of line as a 3-character string (padded with zeros) into the concatenated buffer
-    sprintf((char *)concatenated, "%03zu", line_length);
+//    sprintf((char *)concatenated, "%03zu", line_length);
 
     // Copy the contents of line and mac into the concatenated buffer after the length prefix
-    memcpy(concatenated + 3, line, line_length);
-    memcpy(concatenated + 3 + line_length, mac, mac_length);
+//    memcpy(concatenated + 3, line, line_length);
+//    memcpy(concatenated + 3 + line_length, mac, mac_length);
             
             // Declare a variable to store the number of bytes sent
             ssize_t nbytes;
 			
-			unsigned char *encrypted_line = aes_encrypt((char*)concatenated);
+			unsigned char *encrypted_line = aes_encrypt((char*)line);
+			size_t s = strlen((char*)encrypted_line);
 			//unsigned char *encrypted_line = aes_encrypt(line);
 		
 			size_t AESkeylen = 80;
             // Send the message (line) over the socket
             // Returns the number of bytes sent or -1 if an error occurs
-            if ((nbytes = send(sockfd, encrypted_line, AESkeylen, 0)) == -1)
+            if ((nbytes = send(sockfd, encrypted_line, s, 0)) == -1)
                 error("send failed");
         
 // Free the allocated memory
-    free(concatenated);
+//    free(concatenated);
         }
 
         // Lock the mutex to ensure thread-safe access to the message queue
@@ -828,7 +830,7 @@ void* recvMsg(void*)
 			return 0;
 		}
 		
-		aes_decrypt((unsigned char*) msg, 49);
+		aes_decrypt((unsigned char*) msg, nbytes);
 
 		pthread_mutex_lock(&qmx);
 		mq.push_back({false,msg,"Mr Thread",msg_win});
