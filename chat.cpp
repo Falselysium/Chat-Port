@@ -121,7 +121,7 @@ void fill_IV()
 }
 void fill_HMACkey()
 {
-	for(int i=13;i<13+36;i++)
+	for(int i=0;i<36;i++)
 	{
 		HMACkey[i]=kA[i];
 	}
@@ -453,37 +453,37 @@ static void msg_typed(char *line) {
             transcript.push_back("me: " + mymsg);
 
             
-//            unsigned char mac[32];
-//			HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), (unsigned char*) line, strlen((const char*)line), mac, NULL);
+            unsigned char mac[32];
+			HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), (unsigned char*) line, strlen((const char*)line), mac, NULL);
 		// Calculate the lengths of line and mac
-//  		size_t line_length = strlen(line);
-//    		size_t mac_length = sizeof(mac) / sizeof(mac[0]);
+	  		size_t line_length = strlen(line);
+    		size_t mac_length = sizeof(mac) / sizeof(mac[0]);
 
     // Allocate memory for the concatenated result (line + mac)
-//    unsigned char *concatenated = (unsigned char *)malloc(line_length + mac_length);
+	    unsigned char *concatenated = (unsigned char *)malloc(line_length + mac_length);
 
     // Write the length of line as a 3-character string (padded with zeros) into the concatenated buffer
-//    sprintf((char *)concatenated, "%03zu", line_length);
+	    sprintf((char *)concatenated, "%03zu", line_length);
 
     // Copy the contents of line and mac into the concatenated buffer after the length prefix
-//    memcpy(concatenated + 3, line, line_length);
-//    memcpy(concatenated + 3 + line_length, mac, mac_length);
+	    memcpy(concatenated + 3, line, line_length);
+	    memcpy(concatenated + 3 + line_length, mac, mac_length);
             
             // Declare a variable to store the number of bytes sent
             ssize_t nbytes;
 			
-			unsigned char *encrypted_line = aes_encrypt((char*)line);
-			size_t s = strlen((char*)encrypted_line);
+			unsigned char *encrypted_line = aes_encrypt((char*)concatenated);
+			size_t s = strlen((char*)concatenated);
 			//unsigned char *encrypted_line = aes_encrypt(line);
 		
-			size_t AESkeylen = 80;
-            // Send the message (line) over the socket
+			
+			// Send the message (line) over the socket
             // Returns the number of bytes sent or -1 if an error occurs
             if ((nbytes = send(sockfd, encrypted_line, s, 0)) == -1)
                 error("send failed");
         
 // Free the allocated memory
-//    free(concatenated);
+    free(concatenated);
         }
 
         // Lock the mutex to ensure thread-safe access to the message queue
@@ -787,30 +787,30 @@ void aes_decrypt(unsigned char *ciphertext, int ciphertext_len) {
 
     nWritten += nFinal;
 
-//	EVP_CIPHER_CTX_set_padding(ctx, 1);
+	EVP_CIPHER_CTX_set_padding(ctx, 1);
 
     // Parse the length prefix (first 3 characters) and print only the message
-//    int message_length;
-//   sscanf((char *)pt, "%03d", &message_length);
+    int message_length;
+   sscanf((char *)pt, "%03d", &message_length);
 
     // Extract the MAC from the decrypted result
-//    unsigned char *extracted_mac = pt + 3 + message_length;
+    unsigned char *extracted_mac = pt + 3 + message_length;
 
     // Compute the expected MAC using the HMAC function
-//   unsigned char expected_mac[32];
-//    HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), pt + 3, message_length, expected_mac, NULL);
+	   unsigned char expected_mac[32];
+	    HMAC(EVP_sha256(), HMACkey, strlen((const char*)HMACkey), pt + 3, message_length, expected_mac, NULL);
 
     // Compare the extracted MAC with the expected MAC
-//    if (memcmp(extracted_mac, expected_mac, 32) == 0) {
-//       printf("MAC is kosher\n");
-//    } else {
-//      printf("MAC is not valid. Possible middleman attack, please exit!\n");
-//        EVP_CIPHER_CTX_free(ctx);
-//      return;
-//    }
+	    if (memcmp(extracted_mac, expected_mac, 32) == 0) {
+	       printf("MAC is kosher\n");
+		} else {
+	      printf("MAC is not valid. Possible middleman attack, please exit!\n");
+	        EVP_CIPHER_CTX_free(ctx);
+		    return;
+		}
 
-//    printf("decrypted %i bytes:\n%.*s\n", message_length, message_length, pt + 3);
-    printf("decrypted %i bytes:\n%s\n",nWritten, pt);
+	    printf("decrypted %i bytes:\n%.*s\n", message_length, message_length, pt + 3);
+//    printf("decrypted %i bytes:\n%s\n",nWritten, pt);
 	EVP_CIPHER_CTX_free(ctx);
 }
 
